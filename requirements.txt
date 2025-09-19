@@ -1,9 +1,8 @@
-Flask==3.0.3
-line-bot-sdk==3.11.0
-google-api-python-client==2.149.0
-google-auth==2.35.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
-python-dotenv==1.0.1
-requests==2.32.3
-gunicorn==22.0.0
+# Relaxed constraints to avoid pip resolution conflicts on Render
+Flask>=3.0,<4
+line-bot-sdk>=3.8,<4
+google-api-python-client>=2.120,<3
+google-auth>=2.28,<3
+python-dotenv>=1.0,<2
+requests>=2.31,<3
+gunicorn>=21,<23

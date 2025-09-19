@@ -1,16 +1,10 @@
-# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.venv/
-venv/
-env/
-
-# Env & secrets
 .env
+venv/
+.venv/
 service-account.json
-
-# OS
 .DS_Store
 Thumbs.db

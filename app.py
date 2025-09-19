@@ -7,7 +7,6 @@ import requests
 from flask import Flask, request, abort, jsonify
 from dotenv import load_dotenv
 
-# LINE SDK
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
@@ -15,12 +14,10 @@ from linebot.models import (
     FileMessage, TextSendMessage
 )
 
-# Google Drive
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
-# -------- Bootstrap --------
 load_dotenv()
 
 app = Flask(__name__)
@@ -42,6 +39,8 @@ line_bot_api = LineBotApi(CHANNEL_TOKEN) if CHANNEL_TOKEN else None
 handler = WebhookHandler(CHANNEL_SECRET) if CHANNEL_SECRET else None
 
 def get_drive_service():
+    if not SA_PATH or not os.path.exists(SA_PATH):
+        raise FileNotFoundError(f"Service account file not found: {SA_PATH}. Check GOOGLE_APPLICATION_CREDENTIALS and Secret File path.")
     creds = service_account.Credentials.from_service_account_file(
         SA_PATH,
         scopes=["https://www.googleapis.com/auth/drive.file"]
@@ -69,7 +68,6 @@ def webhook():
 def handle_message(event):
     msg = event.message
 
-    # ถ้าเป็นข้อความทั่วไป ตอบคู่มือสั้น ๆ
     if isinstance(msg, TextMessage):
         line_bot_api.reply_message(
             event.reply_token,
@@ -77,7 +75,6 @@ def handle_message(event):
         )
         return
 
-    # รับเฉพาะ media/file แล้วดึงไฟล์จาก LINE Content API
     try:
         content_url = f"https://api-data.line.me/v2/bot/message/{msg.id}/content"
         r = requests.get(
@@ -88,15 +85,12 @@ def handle_message(event):
         )
         r.raise_for_status()
 
-        # ตั้งชื่อไฟล์
         filename = getattr(msg, "file_name", None) or f"{msg.type}-{msg.id}"
-        # เดานามสกุลจาก content-type (หากไม่มี)
         content_type = r.headers.get("Content-Type")
         if "." not in filename and content_type:
             ext = (mimetypes.guess_extension(content_type.split(";")[0].strip()) or "").replace(".jpe", ".jpg")
             filename = f"{filename}{ext}"
 
-        # เตรียม body สำหรับอัปโหลด
         data = io.BytesIO(r.content)
         media = MediaIoBaseUpload(
             data,
@@ -114,12 +108,6 @@ def handle_message(event):
             media_body=media,
             fields="id, name, webViewLink, webContentLink"
         ).execute()
-
-        # ตั้งสิทธิ์ Anyone-with-link (ถ้าต้องการแชร์ลิงก์ง่าย ๆ) — ปิดคอมเมนต์ 3 บรรทัดล่างนี้ถ้าต้องการ
-        # drive.permissions().create(
-        #     fileId=created["id"],
-        #     body={"role": "reader", "type": "anyone"}
-        # ).execute()
 
         view_link = created.get("webViewLink") or "(private)"
         reply_text = f"อัปโหลดสำเร็จ ✅\nชื่อไฟล์: {created.get('name')}\nไฟล์ ID: {created.get('id')}\nเปิดดู: {view_link}"
