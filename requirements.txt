@@ -1,4 +1,3 @@
-# Relaxed constraints to avoid pip resolution conflicts on Render
 Flask>=3.0,<4
 line-bot-sdk>=3.8,<4
 google-api-python-client>=2.120,<3

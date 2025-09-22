@@ -1,32 +1,39 @@
-# LINE Drive Bot — Python/Flask → Google Drive (Render Free)
+# LINE Drive Bot — Robust Build (Render Free)
 
-รับรูป/วิดีโอ/เสียง/ไฟล์จากผู้ใช้ LINE แล้วอัปโหลดเข้า Google Drive อัตโนมัติ
+> แก้ปัญหา `File not found` ทั้งกรณี **ไม่เจอไฟล์ Service Account** และ **Google Drive: File not found {folderId}**
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/USERNAME/line-drive-bot)
+## วิธีใช้
+1. **แนะนำ**: ใช้ Secret File ใน Render
+   - Environment → **Add Secret File**
+     - Path: `/etc/secrets/service-account.json`
+     - Content: วาง JSON ของ Service Account
+   - ตั้ง env: `GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/service-account.json`
 
-## Quick Start
-1. ใส่โค้ดนี้ใน GitHub ของคุณเอง แล้วแก้ลิงก์ `USERNAME` ในปุ่มข้างบนให้ตรง
-2. Render จะอ่าน `render.yaml` และสร้าง Web Service ให้อัตโนมัติ
-3. ตั้งค่า Environment:
-   - `LINE_CHANNEL_SECRET`
-   - `LINE_CHANNEL_ACCESS_TOKEN`
-   - `GDRIVE_FOLDER_ID`
-   - `GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/service-account.json`
-4. เพิ่ม **Secret File** ที่ Render:
-   - Path: `/etc/secrets/service-account.json`
-   - Content: วางเนื้อหา JSON ของ Service Account
-5. ตั้ง **Webhook URL** ใน LINE Console เป็น `https://<your-app>.onrender.com/webhook` แล้ว Verify
+2. **ทางเลือก (fallback)**: ใช้ env var แทนไฟล์
+   - ใส่ env `GOOGLE_SERVICE_ACCOUNT_JSON` เป็น **raw JSON** หรือ **base64 ของ JSON**
+   - โค้ดจะเขียนไฟล์ชั่วคราวที่ `/tmp/sa.json` ให้อัตโนมัติ
 
-## Troubleshooting: "file not found"
-- **Service Account JSON ไม่พบ**  
-  - ตรวจว่า *Secret File* ถูกสร้างแล้ว และ *Path* ตรงกับ `GOOGLE_APPLICATION_CREDENTIALS`
-  - ชื่อคีย์ต้องสะกดถูกต้อง: `GOOGLE_APPLICATION_CREDENTIALS` (ไม่มี S เติม)
-  - ถ้า log มี `FileNotFoundError: '/etc/secrets/service-account.json'`: แปลว่า Secret File ยังไม่ถูกเพิ่ม หรือ path ผิด
-- **requirements.txt not found**  
-  - ให้แน่ใจว่าไฟล์อยู่ที่ root ของ repo และชื่อถูกต้องตาม `render.yaml`
-- **ModuleNotFoundError: No module named 'app'**  
-  - ให้ไฟล์ entrypoint ชื่อ `app.py` อยู่ที่ root และ `startCommand` เป็น `gunicorn app:app`
-- **LINE Verify 404**  
-  - Route ถูกคือ `POST /webhook` (LINE ใช้ POST อยู่แล้ว) — ตรวจว่า service up และ URL ถูก
+> จะใช้วิธีใดวิธีหนึ่งก็พอ — ถ้า Secret File ไม่มี โค้ดจะพยายามอ่านจาก `GOOGLE_SERVICE_ACCOUNT_JSON` ให้อัตโนมัติ
 
-## Lic: MIT
+## Endpoints
+- `GET /` → health
+- `GET /debug/env` → ดูสถานะ env และไฟล์ SA (ไม่โชว์ secret)
+- `GET /debug/sa` → ดูอีเมลของ Service Account
+- `GET /debug/drive/folder?folderId=<ID>` → ตรวจสิทธิ์/การเข้าถึงโฟลเดอร์
+- `POST /drive/ping?folderId=<ID>` → สร้างไฟล์ทดสอบลง Drive
+
+## ขั้นตอนตรวจแบบเร็ว (แก้ไฟล์ไม่ขึ้น Drive)
+1) เปิด `/debug/env` → `sa_file_exists` ต้องเป็น **true**  
+2) เปิด `/debug/sa` → ได้ `service_account_email` → ไปที่ Google Drive **แชร์โฟลเดอร์ปลายทาง** ให้เมลนี้เป็น **Editor**  
+3) เปิด `/debug/drive/folder?folderId=<โฟลเดอร์ID>` → ต้อง **ok: true**  
+4) `POST /drive/ping?folderId=<โฟลเดอร์ID>` → ดูว่าได้ 200 พร้อมลิงก์ไฟล์  
+5) ทดสอบส่งรูป/ไฟล์ผ่าน LINE
+
+> ถ้า error ในข้อ 3 เป็น `File not found: <id>` → **ID ผิดหรือยังไม่ได้แชร์**  
+> ถ้า error ในข้อ 1 ว่า `sa_file_exists=false` → **ยังไม่มี Secret File และไม่มี GOOGLE_SERVICE_ACCOUNT_JSON**
+
+## Shared Drive
+รองรับแล้ว (`supportsAllDrives=True`). โฟลเดอร์ใน Shared Drive ก็ต้องแชร์สิทธิ์ SA เช่นกัน
+
+## Optional: แชร์ไฟล์แบบ Anyone-with-link
+ตั้ง `DRIVE_SHARE_ANYONE=true` เพื่อให้ไฟล์ดูได้ผ่านลิงก์ (ไม่ต้องล็อกอิน)
