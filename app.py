@@ -111,6 +111,23 @@ def debug_env():
 def debug_sa():
     return jsonify({"service_account_email": get_sa_email()}), 200
 
+@app.get("/debug/drive/folder")
+def debug_drive_folder():
+    folder_id = request.args.get("folderId") or FOLDER_ID_ENV
+    if not folder_id:
+        return jsonify({"ok": False, "error": "folderId is required"}), 400
+    try:
+        drive = get_drive_service()
+        meta = drive.files().get(
+            fileId=folder_id,
+            supportsAllDrives=True,
+            fields="id, name, mimeType, shortcutDetails, driveId, parents"
+        ).execute()
+        return jsonify({"ok": True, "folder": meta}), 200
+    except Exception as e:
+        app.logger.exception("Folder access failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+        
 @app.get("/debug/drive/permissions")
 def debug_drive_permissions():
     file_id = request.args.get("fileId") or FOLDER_ID_ENV
